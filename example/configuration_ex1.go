@@ -15,8 +15,7 @@ type ExampleConfiguration struct {
 var devfs embed.FS
 
 func main() {
-	var ex1Configuration = configuration.NewConfiguration[ExampleConfiguration](devfs, "dev")
-	_, err := ex1Configuration.Load()
+	ex1Configuration, err := configuration.NewConfiguration[ExampleConfiguration](devfs, "dev")
 	if err != nil {
 		return
 	}

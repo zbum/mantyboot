@@ -15,18 +15,23 @@ type Configuration[T any] struct {
 	payload  *T
 }
 
-func NewConfiguration[T any](embedDir embed.FS, profile string) *Configuration[T] {
-	return &Configuration[T]{
+func NewConfiguration[T any](embedDir embed.FS, profile string) (*Configuration[T], error) {
+	c := &Configuration[T]{
 		embedDir: embedDir,
 		profile:  profile,
 	}
+	_, err := c.load()
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func (c *Configuration[T]) GetConfiguration() *T {
 	return c.payload
 }
 
-func (c *Configuration[T]) Load() (*T, error) {
+func (c *Configuration[T]) load() (*T, error) {
 	readers := c.findConfigurationFiles(c.profile)
 	for _, reader := range readers {
 		bytes, err := io.ReadAll(reader)
