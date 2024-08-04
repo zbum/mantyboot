@@ -1,4 +1,4 @@
-module mantyboot
+module github.com/zbum/mantyboot
 
 go 1.22
 
