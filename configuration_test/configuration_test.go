@@ -15,30 +15,37 @@ type TestConfiguration struct {
 //go:embed embed/application-dev.yaml
 var sampleFs embed.FS
 
-func TestConfiguration_Load1(t *testing.T) {
+func TestNewConfiguration(t *testing.T) {
+	type args struct {
+		embedDir embed.FS
+		profile  string
+	}
 	type testCase[T any] struct {
 		name    string
-		c       configuration.Configuration[T]
+		args    args
 		want    *T
 		wantErr bool
 	}
 	tests := []testCase[TestConfiguration]{
 		{
-			name:    "root",
-			c:       *configuration.NewConfiguration[TestConfiguration](sampleFs, "dev"),
+			name: "simple",
+			args: args{
+				embedDir: sampleFs,
+				profile:  "dev",
+			},
 			want:    &TestConfiguration{A: "aValue", B: "bNewValue"},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.c.Load()
+			got, err := configuration.NewConfiguration[TestConfiguration](tt.args.embedDir, tt.args.profile)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewConfiguration() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Load() got = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got.GetConfiguration(), tt.want) {
+				t.Errorf("NewConfiguration() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
