@@ -2,6 +2,10 @@
 ## Configuration
 * configuration module like spring-boot's ConfigurationProperties
 
+### Install
+```shell
+go get github.com/zbum/mantyboot/configuration
+```
 ### Usage
 * If you have file structure like below, It loads files order by (embedfs -> ./application-dev.yaml -> ./config/application-dev.yaml) 
 ```
