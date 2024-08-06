@@ -34,6 +34,7 @@ func (c *Configuration[T]) GetConfiguration() *T {
 func (c *Configuration[T]) load() (*T, error) {
 	readers := c.findConfigurationFiles(c.profile)
 	for _, reader := range readers {
+		defer reader.Close()
 		bytes, err := io.ReadAll(reader)
 		if err != nil {
 			return nil, err
@@ -59,8 +60,8 @@ func (c *Configuration[T]) parse(input []byte) error {
 	return nil
 }
 
-func (c *Configuration[T]) findConfigurationFiles(profile string) []io.Reader {
-	var files []io.Reader
+func (c *Configuration[T]) findConfigurationFiles(profile string) []io.ReadCloser {
+	var files []io.ReadCloser
 
 	firstCandidate := c.findFirstCandidate(profile)
 	if firstCandidate != nil {
@@ -80,8 +81,8 @@ func (c *Configuration[T]) findConfigurationFiles(profile string) []io.Reader {
 	return files
 }
 
-func (c *Configuration[T]) findFirstCandidate(profile string) io.Reader {
-	var property io.Reader
+func (c *Configuration[T]) findFirstCandidate(profile string) io.ReadCloser {
+	var property io.ReadCloser
 	fs.WalkDir(c.embedDir, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -98,7 +99,7 @@ func (c *Configuration[T]) findFirstCandidate(profile string) io.Reader {
 	return property
 }
 
-func (c *Configuration[T]) findSecondCandidate(profile string) *os.File {
+func (c *Configuration[T]) findSecondCandidate(profile string) io.ReadCloser {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil
@@ -113,7 +114,7 @@ func (c *Configuration[T]) findSecondCandidate(profile string) *os.File {
 	return property
 }
 
-func (c *Configuration[T]) findThirdCandidate(profile string) *os.File {
+func (c *Configuration[T]) findThirdCandidate(profile string) io.ReadCloser {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil
