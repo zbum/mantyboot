@@ -8,6 +8,11 @@ go get github.com/zbum/mantyboot/configuration
 ## Mux
 * The first goal of MantyBoot's Mux is compatibility to standard library.
 
+### function
+* Middleware supported, included working access log middleware.
+
+
+
 ### Usage
 
 ```go
