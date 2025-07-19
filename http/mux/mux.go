@@ -26,12 +26,23 @@ func (m *MantyMux) AddMiddleware(middleware Middleware) {
 	m.middlewares = append(m.middlewares, middleware)
 }
 
-func (m *MantyMux) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	mainHandler := handler
+func (m *MantyMux) Handle(pattern string, handler http.Handler) {
+
+	mainHandlerFunc := handler.ServeHTTP
+	for i := len(m.middlewares) - 1; i >= 0; i-- {
+		mainHandlerFunc = m.middlewares[i](mainHandlerFunc)
+	}
+	m.logger.Printf("[handler registered] pattern \"%s\", %s \n", pattern, utils.GetFunctionName(handler))
+
+	m.mux.HandleFunc(pattern, mainHandlerFunc)
+}
+
+func (m *MantyMux) HandleFunc(pattern string, handlerFunc func(http.ResponseWriter, *http.Request)) {
+	mainHandler := handlerFunc
 	for i := len(m.middlewares) - 1; i >= 0; i-- {
 		mainHandler = m.middlewares[i](mainHandler)
 	}
-	m.logger.Printf("[handler registered] pattern \"%s\", %s \n", pattern, utils.GetFunctionName(handler))
+	m.logger.Printf("[handlerFunc registered] pattern \"%s\", %s \n", pattern, utils.GetFunctionName(handlerFunc))
 
 	m.mux.HandleFunc(pattern, mainHandler)
 }
