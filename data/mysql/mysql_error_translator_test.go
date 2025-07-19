@@ -1,4 +1,4 @@
-package exception
+package mysql
 
 import (
 	"github.com/go-sql-driver/mysql"
@@ -24,7 +24,9 @@ func TestMysqlErrorTranslator_TranslateExceptionIfPossible(t1 *testing.T) {
 					Message: "duplicate error",
 				},
 			},
-			want: duplicateKeyError,
+			want: DuplicateKeyError{
+				Message: "duplicate error",
+			},
 		},
 
 		{
@@ -35,7 +37,11 @@ func TestMysqlErrorTranslator_TranslateExceptionIfPossible(t1 *testing.T) {
 					Message: "fk constraint error",
 				},
 			},
-			want: fkConstraintError,
+			want: FkConstraintError{
+				Table:      "",
+				Constraint: "error",
+				Message: "fk constraint error",
+			},
 		},
 	}
 	for _, tt := range tests {
