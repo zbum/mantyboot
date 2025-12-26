@@ -25,12 +25,16 @@ func (w *LoggingResponseWriter) Write(b []byte) (n int, err error) {
 }
 
 func (w *LoggingResponseWriter) WriteHeader(statusCode int) {
-	w.ResponseWriter.WriteHeader(statusCode)
 	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (w *LoggingResponseWriter) Length() int {
 	return w.length
+}
+
+func (w *LoggingResponseWriter) StatusCode() int {
+	return w.statusCode
 }
 
 func AccessLogger(logger *log.Logger) mux.Middleware {
@@ -45,5 +49,5 @@ func AccessLogger(logger *log.Logger) mux.Middleware {
 }
 
 func logAccess(logger *log.Logger, w *LoggingResponseWriter, r *http.Request, start uint64) {
-	logger.Printf("%dμs ua:%10.10s %s %s %d %d\n", uint64(time.Now().UnixMicro())-start, r.UserAgent(), r.Method, r.URL.Path, w.statusCode, w.length)
+	logger.Printf("%dμs ua:%10.10s %s %s %d %d\n", uint64(time.Now().UnixMicro())-start, r.UserAgent(), r.Method, r.URL.Path, w.StatusCode(), w.Length())
 }
