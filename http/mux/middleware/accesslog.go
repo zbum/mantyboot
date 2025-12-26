@@ -24,6 +24,11 @@ func (w *LoggingResponseWriter) Write(b []byte) (n int, err error) {
 	return
 }
 
+func (w *LoggingResponseWriter) WriteHeader(statusCode int) {
+	w.ResponseWriter.WriteHeader(statusCode)
+	w.statusCode = statusCode
+}
+
 func (w *LoggingResponseWriter) Length() int {
 	return w.length
 }
