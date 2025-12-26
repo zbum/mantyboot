@@ -1,243 +1,213 @@
 # MantyBoot
 
-A Go web framework inspired by Spring Boot, providing HTTP routing, middleware support, configuration management, and database error handling.
+Go 언어를 위한 Spring Boot 스타일 유틸리티 라이브러리입니다.
 
-## Features
+## 개요
 
-- **HTTP Router**: Compatible with Go's standard library
-- **Middleware Support**: CORS, Rate Limiting, Recovery, Access Logging
-- **Configuration Management**: YAML-based with validation
-- **Structured Logging**: JSON and text formats with levels
-- **Error Handling**: Comprehensive error types and wrapping
-- **Database Support**: MySQL error translation
+MantyBoot은 Spring Boot의 편리한 기능들을 Go에서 사용할 수 있도록 만든 라이브러리입니다. 설정 관리, 데이터 접근 에러 처리, HTTP 유틸리티 등의 기능을 제공합니다.
 
-## Installation
+## 모듈
+
+| 모듈 | 설명 | 설치 |
+|------|------|------|
+| [configuration](#configuration) | Spring Boot의 ConfigurationProperties 스타일 YAML 설정 관리 | `go get github.com/zbum/mantyboot/configuration` |
+| [data](#data) | 데이터베이스 에러 추상화 및 번역 | `go get github.com/zbum/mantyboot/data` |
+| [http](#http) | HTTP 요청 처리 유틸리티 | `go get github.com/zbum/mantyboot/http` |
+
+## 요구 사항
+
+- Go 1.22 이상
+
+## 설치
 
 ```shell
 go get github.com/zbum/mantyboot
 ```
 
-## Quick Start
+---
 
-### Basic HTTP Server
+### Configuration
 
-```go
-package main
+Spring Boot의 `ConfigurationProperties`와 유사한 YAML 설정 관리 모듈입니다.
 
-import (
-	"log"
-	"net/http"
+#### 설치
 
-	"github.com/zbum/mantyboot/http/mux"
-	"github.com/zbum/mantyboot/http/mux/middleware"
-)
-
-func main() {
-	mux := mux.NewMantyMux()
-
-	// Add middleware
-	mux.AddMiddleware(middleware.LegacyAccessLogger(log.Default()))
-
-	// Register routes
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, MantyBoot!"))
-	})
-
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"healthy"}`))
-	})
-
-	log.Fatal(http.ListenAndServe(":8080", mux))
-}
+```shell
+go get github.com/zbum/mantyboot/configuration
 ```
 
-### Enhanced Server with All Features
+#### 설정 파일 로딩 순서
 
-```go
-package main
+다음 순서로 설정 파일을 찾아 로드합니다. 나중에 로드된 값이 이전 값을 덮어씁니다.
 
-import (
-	"embed"
-	"fmt"
-	"net/http"
-	"time"
-
-	"github.com/zbum/mantyboot/configuration"
-	"github.com/zbum/mantyboot/http/mux"
-	"github.com/zbum/mantyboot/http/mux/middleware"
-)
-
-type AppConfig struct {
-	Server struct {
-		Port int    `yaml:"port" validate:"required,min=1,max=65535"`
-		Host string `yaml:"host" validate:"required"`
-	} `yaml:"server"`
-}
-
-//go:embed config/application-dev.yaml
-var devfs embed.FS
-
-func main() {
-	// Initialize structured logger
-	logger := log.Default()
-	logger.Info("Starting enhanced application")
-
-	// Load configuration with validation
-	config, err := configuration.NewConfiguration[AppConfig](devfs, "dev")
-	if err != nil {
-		logger.Fatal("Failed to load configuration", err)
-	}
-
-	// Create mux with enhanced middleware
-	mux := mux.NewMantyMux()
-	mux.AddMiddleware(middleware.Recovery(logger))
-	mux.AddMiddleware(middleware.CORS(nil)) // Use default CORS config
-	mux.AddMiddleware(middleware.RateLimitByIP(100, time.Minute))
-	mux.AddMiddleware(middleware.AccessLogger(logger))
-
-	// Register routes
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Enhanced MantyBoot!"))
-	})
-
-	// Start server
-	addr := fmt.Sprintf("%s:%d", config.GetConfiguration().Server.Host, config.GetConfiguration().Server.Port)
-	logger.Println("Starting enhanced application")
-
-	logger.Fatal("Server failed", fmt.Errorf("server error: %v", http.ListenAndServe(addr, mux)))
-}
-```
-
-## Configuration
-
-### File Structure
-Configuration files are loaded in the following order:
-1. Embedded files (embed.FS)
+1. embed.FS (임베딩된 파일)
 2. `./application-{profile}.yaml`
 3. `./config/application-{profile}.yaml`
 
-### Example Configuration
+#### 사용 예시
 
-```yaml
-# application-dev.yaml
-server:
-  port: 8080
-  host: "localhost"
-
-database:
-  url: "mysql://localhost:3306/testdb"
-  max-conns: 10
-
+디렉토리 구조:
+```
+.
+├── application-dev.yaml
+├── config
+│   └── application-dev.yaml
+└── example
+    ├── main.go
+    └── embed
+        └── application-dev.yaml
 ```
 
-### Configuration with Validation
-
 ```go
-type AppConfig struct {
-	Server struct {
-		Port int    `yaml:"port" validate:"required,min=1,max=65535"`
-		Host string `yaml:"host" validate:"required"`
-	} `yaml:"server"`
+package main
+
+import (
+    "embed"
+    "fmt"
+    "github.com/zbum/mantyboot/configuration"
+)
+
+type ExampleConfiguration struct {
+    ServerName string `yaml:"server-name"`
+    ServerPort string `yaml:"server-port"`
 }
 
-// Create validator
-validator := configuration.NewConfigurationValidator()
-validator.AddRule("Server.Port", configuration.ValidationRule{
-	Required: true,
-	Min:      &[]int{1}[0],
-	Max:      &[]int{65535}[0],
-})
+//go:embed embed/application-dev.yaml
+var devfs embed.FS
 
-// Load with validation
-config, err := configuration.NewConfigurationWithValidation[AppConfig](devfs, "dev", validator)
-```
-
-## Middleware
-
-### CORS
-```go
-corsConfig := middleware.DefaultCORSConfig()
-corsConfig.AllowedOrigins = []string{"http://localhost:3000"}
-mux.AddMiddleware(middleware.CORS(corsConfig))
-```
-
-### Rate Limiting
-```go
-// Limit by IP: 100 requests per minute
-mux.AddMiddleware(middleware.RateLimitByIP(100, time.Minute))
-
-// Custom rate limiting
-limiter := middleware.NewRateLimiter(50, time.Hour)
-mux.AddMiddleware(middleware.RateLimit(limiter, middleware.IPKeyFunc))
-```
-
-### Recovery
-```go
-// Basic recovery
-mux.AddMiddleware(middleware.Recovery(logger))
-
-// Custom recovery handler
-mux.AddMiddleware(middleware.RecoveryWithHandler(logger, func(w http.ResponseWriter, r *http.Request, err interface{}) {
-	http.Error(w, "Custom error message", http.StatusInternalServerError)
-}))
-```
-
-### Access Logging
-```go
-logger := logging.Default()
-mux.AddMiddleware(middleware.AccessLogger(logger))
-
-```
-
-
-## Error Handling
-
-### Custom Error Types
-```go
-import "github.com/zbum/mantyboot/errors"
-
-// Wrap errors with context
-err := errors.WrapConfigurationError(originalErr, "failed to load config")
-
-// Database errors
-dbErr := errors.WrapDatabaseError(originalErr, "query", "failed to fetch user")
-
-// HTTP errors
-httpErr := errors.WrapHTTPError(originalErr, 500, "internal server error")
-```
-
-### MySQL Error Translation
-```go
-import "github.com/zbum/mantyboot/data/mysql"
-
-translator := mysql.MysqlErrorTranslator{}
-translatedErr := translator.TranslateExceptionIfPossible(mysqlErr)
-
-switch err := translatedErr.(type) {
-case mysql.DuplicateKeyError:
-	fmt.Printf("Duplicate key on table %s, column %s\n", err.Table, err.Column)
-case mysql.FkConstraintError:
-	fmt.Printf("Foreign key constraint failed on table %s\n", err.Table)
+func main() {
+    config, err := configuration.NewConfiguration[ExampleConfiguration](devfs, "dev")
+    if err != nil {
+        return
+    }
+    fmt.Println(config.GetConfiguration())
 }
 ```
 
-## Examples
+---
 
-See the `example/` directory for complete working examples:
+### Data
 
-- `example/http/main.go` - Basic HTTP server
-- `example/configuration_ex1.go` - Configuration example
-- `example/enhanced_demo.go` - Full-featured example with all components
+데이터베이스 에러를 추상화하여 처리하는 모듈입니다.
 
-## Contributing
+#### 설치
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+```shell
+go get github.com/zbum/mantyboot/data
+```
 
-## License
+#### MySQL 에러 번역기
 
-This project is licensed under the Apache License - see the LICENSE file for details.
+MySQL 에러 코드를 의미 있는 에러 타입으로 변환합니다.
+
+| 에러 코드 | 에러 타입 | 설명 |
+|-----------|-----------|------|
+| 1062 | `DuplicateKeyError` | 중복 키 에러 |
+| 1452 | `FkConstraintError` | 외래 키 제약 조건 위반 |
+
+```go
+package main
+
+import (
+    "github.com/zbum/mantyboot/data/mysql"
+)
+
+func main() {
+    translator := mysql.MysqlErrorTranslator{}
+
+    // DB 작업 수행
+    err := someDBOperation()
+
+    // 에러 변환
+    dataAccessErr := translator.TranslateExceptionIfPossible(err)
+
+    switch dataAccessErr.(type) {
+    case mysql.DuplicateKeyError:
+        // 중복 키 처리
+    case mysql.FkConstraintError:
+        // FK 제약 조건 위반 처리
+    }
+}
+```
+
+---
+
+### HTTP
+
+HTTP 요청 처리를 위한 유틸리티 모듈입니다.
+
+#### 설치
+
+```shell
+go get github.com/zbum/mantyboot/http
+```
+
+#### RequestWrapper
+
+HTTP 요청에서 파라미터를 쉽게 추출할 수 있습니다.
+
+```go
+package main
+
+import (
+    "net/http"
+    mantyhttp "github.com/zbum/mantyboot/http"
+)
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    wrapper := mantyhttp.NewRequestWrapper(r)
+
+    // Query String 또는 POST Form에서 int64 파라미터 추출
+    id, err := wrapper.ParamInt64("id")
+    if err != nil {
+        // 에러 처리
+    }
+
+    // 다른 정수 타입도 지원
+    count, _ := wrapper.ParamInt32("count")
+    page, _ := wrapper.ParseInt("page")
+}
+```
+
+#### Parse 함수
+
+문자열을 다양한 정수 타입으로 변환하는 제네릭 함수입니다.
+
+```go
+import mantyhttp "github.com/zbum/mantyboot/http"
+
+// int64로 변환
+val, err := mantyhttp.Parse[int64]("12345")
+
+// int32로 변환
+val32, err := mantyhttp.Parse[int32]("123")
+```
+
+#### MIME 타입 상수
+
+일반적으로 사용되는 Content-Type 값들을 상수로 제공합니다.
+
+```go
+import "github.com/zbum/mantyboot/http/mime"
+
+// 사용 예시
+contentType := mime.ContentTypeApplicationJson      // "application/json"
+formType := mime.ContentTypeApplicationFormUrlencoded // "application/x-www-form-urlencoded"
+```
+
+지원하는 MIME 타입:
+- `application/json`
+- `application/xml`
+- `application/x-www-form-urlencoded`
+- `multipart/form-data`
+- `text/html`
+- `text/plain`
+- 기타 다수
+
+---
+
+## 라이선스
+
+Apache License 2.0
+
+자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
