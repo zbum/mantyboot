@@ -1,7 +1,7 @@
 package http
 
 import (
-	"errors"
+	"fmt"
 	"github.com/zbum/mantyboot/http/header"
 	"github.com/zbum/mantyboot/http/mime"
 	"golang.org/x/exp/constraints"
@@ -37,7 +37,7 @@ func Parse[T constraints.Signed](param string) (T, error) {
 		return T(i), err
 	}
 
-	return -1, errors.New("can't parse " + param)
+	return -1, fmt.Errorf("unsupported type for parsing: %T", result)
 }
 
 func (w RequestWrapper) ParamInt64(param string) (int64, error) {
